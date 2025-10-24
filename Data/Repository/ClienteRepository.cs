@@ -18,8 +18,8 @@ public class ClienteRepository
     {
         _connection.Execute("""
             CREATE TABLE IF NOT EXISTS Clientes (
-                Id TEXT PRIMARY KEY,
-                Nome TEXT,
+                Id TEXT COLLATE NOCASE PRIMARY KEY,
+                Nome TEXT COLLATE NOCASE,
                 Cpf TEXT,
                 Renda REAL,
                 Nascimento TEXT,

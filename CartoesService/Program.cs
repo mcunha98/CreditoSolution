@@ -1,3 +1,4 @@
+using CartoesService.Domain;
 using Data.Factory;
 using Data.Repository;
 using RabbitMQ.Client;
@@ -54,57 +55,16 @@ app.Lifetime.ApplicationStarted.Register(async () =>
             return;
         }
 
-        if (proposta.Status != PropostaStatus.Aprovada)
+        try
         {
-            Console.WriteLine($"[CartaoService] Proposta {propostaId} nao esta aprovada");
-            return;
+            var emissor = new CartaoEmissor(repoCartao);
+            emissor.Emitir(proposta);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"[CartaoService] {e.Message}");
         }
 
-        if (proposta.Score <= 100)
-        {
-            Console.WriteLine($"[CartaoService] Proposta {propostaId} com score insuficiente");
-            return;
-        }
-
-        int quantidade = 0;
-        decimal limite = 0m;
-
-        Console.WriteLine($"[CartaoService] Proposta {proposta.Id} aprovada, gerando cartoes");
-        //De 101 a 500 – Permitido liberação de cartão de crédito(limite R$ 1.000,00);
-        //De 501 a 1000 – Permitido liberação de até 2 cartão de crédito (limite R$ 5.000,00) cada.
-        if (proposta.Score >= 101 && proposta.Score <= 500)
-        {
-            quantidade = 1;
-            limite = 1000m;
-        }
-        else
-        {
-            quantidade = 2;
-            limite = 5000m;
-        }
-
-        if (quantidade <= 0 || limite <= 0m)
-        {
-            Console.WriteLine($"[CartaoService] Proposta {propostaId} tem score invalido para determinar produtos selecionados");
-            return;
-        }
-
-        for (int i = 0; i < quantidade; i++)
-        {
-            var plastico = CartaoMock.GerarCartao();
-
-            var cartao = new Cartao
-            {
-                ClienteId  = proposta.ClienteId,
-                PropostaId = proposta.Id,
-                Numero = plastico.Numero,
-                Bandeira = plastico.Bandeira,
-                Validade = plastico.Validade,
-                Limite = limite,
-            };
-            repoCartao.Insert(cartao);
-            Console.WriteLine($"[CartaoService] Cartao {cartao.Numero} gerado para proposta {proposta.Id}");
-        }
         await Task.Yield();
     };
 
@@ -131,6 +91,18 @@ app.MapGet("/api/cartoes", (int? page, int? pageSize) =>
         total = repoCartao.Count(),
         items = registros
     });
+});
+
+app.MapGet("/api/cartoes/proposta/{id:guid}", (Guid id) =>
+{
+    var registros = repoCartao.GetByProposta(id).ToList();
+    return Results.Ok(new { pagina = 1, tamanho = registros.Count, total = registros.Count, items = registros });
+});
+
+app.MapGet("/api/cartoes/cliente/{id:guid}", (Guid id) =>
+{
+    var registros = repoCartao.GetByCliente(id).ToList();
+    return Results.Ok(new { pagina = 1, tamanho = registros.Count, total = registros.Count, items = registros });
 });
 
 

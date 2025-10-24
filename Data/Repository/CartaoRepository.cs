@@ -22,9 +22,9 @@ namespace Data.Repository
         {
             _connection.Execute("""
             CREATE TABLE IF NOT EXISTS Cartoes (
-                Id TEXT PRIMARY KEY,
-                PropostaId TEXT,
-                ClienteId TEXT,
+                Id TEXT COLLATE NOCASE PRIMARY KEY,
+                PropostaId TEXT COLLATE NOCASE,
+                ClienteId TEXT COLLATE NOCASE,
                 Numero TEXT,
                 Bandeira TEXT,
                 Validade TEXT,
@@ -50,6 +50,50 @@ namespace Data.Repository
 
             var sql = $"SELECT * FROM Cartoes ORDER BY Criado DESC LIMIT {pageSize} OFFSET {offset}";
             var result = _connection.Query(sql);
+
+            foreach (var row in result)
+            {
+                yield return new Cartao
+                {
+                    Id = Guid.Parse((string)row.Id),
+                    ClienteId = Guid.Parse((string)row.ClienteId),
+                    PropostaId = Guid.Parse((string)row.ClienteId),
+                    Numero = (string)row.Numero,
+                    Bandeira = (string)row.Bandeira,
+                    Limite = (decimal)row.Valor,
+                    Validade = (string)row.Validade,
+                    Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
+                    Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado)
+                };
+            }
+        }
+
+        public IEnumerable<Cartao> GetByProposta(Guid id)
+        {
+            var sql = "SELECT * FROM Cartoes WHERE PropostaId = @Id ORDER BY Criado desc";
+            var result = _connection.Query(sql, new { Id = id.ToString() });
+
+            foreach (var row in result)
+            {
+                yield return new Cartao
+                {
+                    Id = Guid.Parse((string)row.Id),
+                    ClienteId = Guid.Parse((string)row.ClienteId),
+                    PropostaId = Guid.Parse((string)row.ClienteId),
+                    Numero = (string)row.Numero,
+                    Bandeira = (string)row.Bandeira,
+                    Limite = (decimal)row.Valor,
+                    Validade = (string)row.Validade,
+                    Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
+                    Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado)
+                };
+            }
+        }
+
+        public IEnumerable<Cartao> GetByCliente(Guid id)
+        {
+            var sql = "SELECT * FROM Cartoes WHERE ClienteId = @Id ORDER BY Criado desc";
+            var result = _connection.Query(sql, new { Id = id.ToString() });
 
             foreach (var row in result)
             {

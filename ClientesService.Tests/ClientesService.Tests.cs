@@ -8,6 +8,7 @@ using System.Net.Http.Json;
 using Xunit;
 
 namespace ClientesService.Tests;
+
 public class ClienteIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;

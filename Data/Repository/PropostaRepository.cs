@@ -22,8 +22,8 @@ namespace Data.Repository
         {
             _connection.Execute("""
             CREATE TABLE IF NOT EXISTS Propostas (
-                Id TEXT PRIMARY KEY,
-                ClienteId TEXT,
+                Id TEXT COLLATE NOCASE PRIMARY KEY,
+                ClienteId TEXT COLLATE NOCASE,
                 Status INTEGER,
                 Score INTEGER,
                 Valor REAL,
@@ -71,8 +71,8 @@ namespace Data.Repository
 
         public Proposta? Find(Guid id)
         {
-            const string sql = "SELECT * FROM Propostas WHERE Id = @Id COLLATE NOCASE LIMIT 1";
-            var row = _connection.QueryFirstOrDefault(sql, new { Id = id.ToString().ToUpperInvariant() });
+            var sql = "SELECT * FROM Propostas WHERE Id = @Id LIMIT 1";
+            var row = _connection.QueryFirstOrDefault(sql, new { Id = id.ToString() });
 
             if (row == null) return null;
 
