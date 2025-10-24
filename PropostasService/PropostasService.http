@@ -1,0 +1,15 @@
+@PropostasService_HostAddress = http://localhost:5054
+
+### Teste GET paginado
+GET {{PropostasService_HostAddress}}/api/propostas?page=1&pageSize=10
+Accept: application/json
+
+###
+POST {{PropostasService_HostAddress}}/api/propostas/decidir
+Accept: application/json
+Content-Type: application/json
+
+{
+  "id": "041AC606-C50D-41F5-9D4A-5B2D945B602A",
+  "aprovado": true
+}

@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+	<PreserveCompilationContext>true</PreserveCompilationContext>
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Data\Data.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
+  </ItemGroup>
+
+	<Target Name="CopyDepsFile" AfterTargets="Build">
+		<ItemGroup>
+			<DepsFiles Include="$(SolutionDir)ClientesService\bin\$(Configuration)\net9.0\*.deps.json" />
+		</ItemGroup>
+		<Copy SourceFiles="@(DepsFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+	</Target>
+</Project>
