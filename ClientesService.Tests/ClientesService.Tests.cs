@@ -9,11 +9,11 @@ using Xunit;
 
 namespace ClientesService.Tests;
 
-public class ClienteIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class ClientIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
 
-    public ClienteIntegrationTests(WebApplicationFactory<Program> factory)
+    public ClientIntegrationTests(WebApplicationFactory<Program> factory)
     {
         _client = factory.CreateClient();
     }

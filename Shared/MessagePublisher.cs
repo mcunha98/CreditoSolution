@@ -45,7 +45,7 @@ public class MessagePublisher
             exchange: "",
             routingKey: _queueName,
             mandatory: false,
-            basicProperties: props,
+            //basicProperties: props,
             body: body
         );
         Console.WriteLine($"[MessagePublisher] Mensagem publicada na fila '{_queueName}'");

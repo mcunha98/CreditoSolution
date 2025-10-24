@@ -37,10 +37,11 @@ namespace Data.Repository
 
         public void Insert(Cartao cartao)
         {
+            Console.WriteLine("[CartaoRepository] Inserindo cartao no banco de dados com " , cartao);
             _connection.Execute("""
-            INSERT INTO Cartoes (Id, PropostaId, ClienteId, Numero, Bandeira, Validade, Limite, Criado)
-            VALUES (@Id, @PropostaId, @ClienteId, @Numero, @Bandeira, @Validade, @Limite, @Criado);
-        """, cartao);
+                INSERT INTO Cartoes (Id, PropostaId, ClienteId, Numero, Bandeira, Validade, Limite, Criado)
+                VALUES (@Id, @PropostaId, @ClienteId, @Numero, @Bandeira, @Validade, @Limite, @Criado);
+            """, cartao);
         }
 
         public IEnumerable<Cartao> GetAll(int page = 1, int pageSize = 10)
@@ -53,18 +54,7 @@ namespace Data.Repository
 
             foreach (var row in result)
             {
-                yield return new Cartao
-                {
-                    Id = Guid.Parse((string)row.Id),
-                    ClienteId = Guid.Parse((string)row.ClienteId),
-                    PropostaId = Guid.Parse((string)row.ClienteId),
-                    Numero = (string)row.Numero,
-                    Bandeira = (string)row.Bandeira,
-                    Limite = (decimal)row.Valor,
-                    Validade = (string)row.Validade,
-                    Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
-                    Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado)
-                };
+                yield return Fetch(row);
             }
         }
 
@@ -75,18 +65,7 @@ namespace Data.Repository
 
             foreach (var row in result)
             {
-                yield return new Cartao
-                {
-                    Id = Guid.Parse((string)row.Id),
-                    ClienteId = Guid.Parse((string)row.ClienteId),
-                    PropostaId = Guid.Parse((string)row.ClienteId),
-                    Numero = (string)row.Numero,
-                    Bandeira = (string)row.Bandeira,
-                    Limite = (decimal)row.Valor,
-                    Validade = (string)row.Validade,
-                    Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
-                    Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado)
-                };
+                yield return Fetch(row);
             }
         }
 
@@ -97,18 +76,7 @@ namespace Data.Repository
 
             foreach (var row in result)
             {
-                yield return new Cartao
-                {
-                    Id = Guid.Parse((string)row.Id),
-                    ClienteId = Guid.Parse((string)row.ClienteId),
-                    PropostaId = Guid.Parse((string)row.ClienteId),
-                    Numero = (string)row.Numero,
-                    Bandeira = (string)row.Bandeira,
-                    Limite = (decimal)row.Valor,
-                    Validade = (string)row.Validade,
-                    Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
-                    Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado)
-                };
+                yield return Fetch(row);
             }
         }
 
@@ -135,6 +103,25 @@ namespace Data.Repository
 
             int rows = _connection.Execute(sql, cartao);
             return rows > 0;
+        }
+
+        private Cartao? Fetch(dynamic? row)
+        {
+            if (row == null)
+                return null;
+
+            return new Cartao
+            {
+                Id = Guid.Parse((string)row.Id),
+                ClienteId = Guid.Parse((string)row.ClienteId),
+                PropostaId = Guid.Parse((string)row.ClienteId),
+                Numero = (string)row.Numero,
+                Bandeira = (string)row.Bandeira,
+                Limite = (decimal)row.Limite,
+                Validade = (string)row.Validade,
+                Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
+                Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado)
+            };
         }
     }
 }

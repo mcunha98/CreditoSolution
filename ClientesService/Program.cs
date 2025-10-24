@@ -5,55 +5,55 @@ using Shared.Mock;
 using Data.Factory;
 using Data.Repository;
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllers();
-var app = builder.Build();
+namespace ClientesService;
 
-var repo = new ClienteRepository(DbContextFactory.CreateConnection());
-repo.Up();
-
-
-app.MapGet("/api/clientes", (int? page, int? pageSize) =>
+public class Startup
 {
-    int currentPage = page ?? 1;
-    int size = pageSize ?? 10;
-
-    var clientes = repo.GetAll(currentPage, size).ToList();
-
-    return Results.Ok(new
+    public static void Main(string[] args)
     {
-        pagina = currentPage,
-        tamanho = size,
-        total = repo.Count(),
-        items = clientes
-    });
-});
+        var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AddControllers();
+        var app = builder.Build();
 
-app.MapPost("/api/clientes", async (Cliente cliente) =>
-{
-    try
-    {
-        ClienteValidator.Validate(cliente);
+        var repo = new ClienteRepository(DbContextFactory.CreateConnection());
+        repo.Up();
+
+        app.MapGet("/api/clientes", (int? page, int? pageSize) =>
+        {
+            int currentPage = page ?? 1;
+            int size = pageSize ?? 10;
+
+            var clientes = repo.GetAll(currentPage, size).ToList();
+            return Results.Ok(new PagedResult<Cliente>(){ Pagina= currentPage, Tamanho = size, Total = repo.Count(), Items = clientes});
+        });
+
+        app.MapPost("/api/clientes", async (Cliente cliente) =>
+        {
+            try
+            {
+                ClienteValidator.Validate(cliente);
+            }
+            catch (Exception e)
+            {
+                return Results.BadRequest(new { erro = e.Message });
+            }
+
+            try
+            {
+                repo.Insert(cliente);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+            var publisher = new MessagePublisher("cliente.criado");
+            await publisher.PublishAsync(cliente);
+            return Results.Created($"/api/clientes/{cliente.Id}", cliente);
+        });
+
+        app.Run();
     }
-    catch (Exception e)
-    {
-        return Results.BadRequest(new { erro = e.Message });
-    }
-
-    try
-    {
-        repo.Insert(cliente);
-    }
-    catch (Exception)
-    {
-        throw;
-    }
-
-    var publisher = new MessagePublisher("cliente.criado");
-    await publisher.PublishAsync(cliente);
-    return Results.Created($"/api/clientes/{cliente.Id}", cliente);
-});
-
-app.Run();
+}
 
 public partial class Program { }

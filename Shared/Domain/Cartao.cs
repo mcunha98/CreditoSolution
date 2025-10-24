@@ -12,9 +12,9 @@ namespace Shared.Domain
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        public Guid ClienteId { get; set; }
+        public Guid ClienteId { get; set; } = Guid.Empty;
 
-        public Guid PropostaId { get; set; }
+        public Guid PropostaId { get; set; } = Guid.Empty;
 
         public string Numero { get; set; } = string.Empty;
         

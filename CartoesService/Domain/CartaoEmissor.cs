@@ -19,13 +19,10 @@ namespace CartoesService.Domain
             int quantidade = 0;
             decimal limite = 0m;
 
-            if (proposta.Status != PropostaStatus.Aprovada)
-                throw new ArgumentException($"[CartaoService] Proposta {proposta.Id} nao esta aprovada");
-
-            if (proposta.Score <= 100)
-                throw new ArgumentException($"[CartaoService] Proposta {proposta.Id} com score insuficiente");
-
-            Console.WriteLine($"[CartaoService] Proposta {proposta.Id} aprovada, gerando cartoes");
+            Console.WriteLine($"[CartaoEmissor] Proposta {proposta.Id} recebida com status {proposta.Status} e score {proposta.Score}, emitindo plastico");
+            if (proposta.Status != PropostaStatus.Aprovada || proposta.Score <= 100)
+                throw new ArgumentException($"[CartaoEmissor] Proposta {proposta.Id} nao esta aprovada ou tem score insuficiente");
+            
             if (proposta.Score >= 101 && proposta.Score <= 500)
             {
                 quantidade = 1;
@@ -39,33 +36,44 @@ namespace CartoesService.Domain
 
             var existentes = repoCartao.GetByCliente(proposta.ClienteId).ToList();
             if (existentes.Count() >= 2)
-                throw new ArgumentException($"[CartaoService] Cliente {proposta.ClienteId} já tem a quantidade máximo de cartões emitidos");
+                throw new ArgumentException($"[CartaoEmissor] Cliente {proposta.ClienteId} já tem a quantidade máximo de cartões emitidos");
 
             if (quantidade == 2 && existentes.Count() == 1)
             {
-                Console.WriteLine($"[CartaoService] Reajustando quantidade de cartoes a emitir");
+                Console.WriteLine($"[CartaoEmissor] Reajustando quantidade de cartoes a emitir");
                 quantidade = 1;
                 limite = 1000m;
             }
 
             if (quantidade <= 0 || limite <= 0m)
-                throw new ArgumentException($"[CartaoService] Proposta {proposta.Id} tem score invalido para determinar produtos selecionados");
+                throw new ArgumentException($"[CartaoEmissor] Proposta {proposta.Id} tem score invalido para determinar produtos selecionados");
 
-            for (int i = 0; i < quantidade; i++)
+            Console.WriteLine($"[CartaoEmissor] Criando {quantidade} cartao(oes) com {limite} de limite alocado ");
+            for (int i = 1; i <= quantidade; i++)
             {
-                var plastico = CartaoMock.GerarCartao();
-
-                var cartao = new Cartao
+                try
                 {
-                    ClienteId = proposta.ClienteId,
-                    PropostaId = proposta.Id,
-                    Numero = plastico.Numero,
-                    Bandeira = plastico.Bandeira,
-                    Validade = plastico.Validade,
-                    Limite = limite,
-                };
-                repoCartao.Insert(cartao);
-                Console.WriteLine($"[CartaoService] Cartao {cartao.Numero} gerado para proposta {proposta.Id}");
+                    Console.WriteLine($"[CartaoEmissor] Gerando plastico {i} de {quantidade} com limite de {limite}");
+                    var plastico = CartaoMock.GerarCartao();
+
+                    Console.WriteLine($"[CartaoEmissor] Plastico gerado : {plastico.Numero}");
+                    var cartao = new Cartao
+                    {
+                        ClienteId = proposta.ClienteId,
+                        PropostaId = proposta.Id,
+                        Limite = limite,
+                        Numero = plastico.Numero,
+                        Bandeira = plastico.Bandeira,
+                        Validade = plastico.Validade,
+                    };
+                    Console.WriteLine(cartao);
+                    repoCartao.Insert(cartao);
+                    Console.WriteLine($"[CartaoEmissor] Cartao {cartao.Numero} gerado para proposta {proposta.Id}");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message + " " + e.StackTrace);
+                }
             }
         }
     }

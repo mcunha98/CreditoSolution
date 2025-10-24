@@ -15,3 +15,17 @@ Como no descritivo da atividade não havia definicação clara de como encadear 
 
 Para realizar o calculo foi usada a idade do cliente e a renda para montar uma escala de score que atenda os requisitos definidos
  
+
+## Rodar aplicação com testes
+
+Power Shell
+
+`dotnet clean; dotnet build; dotnet test`
+
+Executando em ordem de prioridade/fluxo esperado
+
+`dotnet clean; dotnet build; dotnet test .\ClientesService.Tests\ClientesService.Tests.csproj; dotnet test .\PropostasService.Tests\PropostasService.Tests.csproj; dotnet test .\CartoesService.Tests\CartoesService.Tests.csproj`
+
+
+
+dotnet clean; dotnet build; dotnet test .\ClientesService.Tests\ClientesService.Tests.csproj; dotnet test .\CartoesService.Tests\CartoesService.Tests.csproj; dotnet test .\PropostasService.Tests\PropostasService.Tests.csproj; 

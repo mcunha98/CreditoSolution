@@ -9,111 +9,123 @@ using System.Text;
 using System.Text.Json;
 using PropostasService.Models;
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllers();
-var app = builder.Build();
+namespace PropostasService;
 
-var repo = new PropostaRepository(DbContextFactory.CreateConnection());
-repo.Up();
-
-app.Lifetime.ApplicationStarted.Register(async () =>
+public class Startup
 {
-
-    var factory = new ConnectionFactory()
+    public static void Main(string[] args)
     {
-        HostName = "localhost",
-        UserName = "guest",
-        Password = "guest",
-        Port = 5672
-    };
+        var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AddControllers();
+        var app = builder.Build();
 
-    var connection = await factory.CreateConnectionAsync();
-    var channel = await connection.CreateChannelAsync();
+        var repo = new PropostaRepository(DbContextFactory.CreateConnection());
+        repo.Up();
 
-    await channel.QueueDeclareAsync(
-        queue: "cliente.criado",
-        durable: false,
-        exclusive: false,
-        autoDelete: false,
-        arguments: null
-    );
-
-    var consumer = new AsyncEventingBasicConsumer(channel);
-    consumer.ReceivedAsync += async (sender, ea) =>
-    {
-        var body = ea.Body.ToArray();
-        var message = Encoding.UTF8.GetString(body);
-        var cliente = JsonSerializer.Deserialize<Cliente>(message);
-
-        Console.WriteLine($"[PropostasService] Cliente {cliente?.Nome} recebido, criando proposta");
-        if (cliente is null)
+        // Configura o consumidor RabbitMQ ao iniciar o serviço
+        app.Lifetime.ApplicationStarted.Register(async () =>
         {
-            Console.WriteLine($"[PropostasService] Mensagem invalida recebida");
-            return;
-        }
+            var factory = new ConnectionFactory()
+            {
+                HostName = "localhost",
+                UserName = "guest",
+                Password = "guest",
+                Port = 5672
+            };
 
-        int score = PropostaScoreService.Calculate(cliente);
-        var proposta = new Proposta
+            var connection = await factory.CreateConnectionAsync();
+            var channel = await connection.CreateChannelAsync();
+
+            await channel.QueueDeclareAsync(
+                queue: "cliente.criado",
+                durable: false,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null
+            );
+
+            var consumer = new AsyncEventingBasicConsumer(channel);
+            consumer.ReceivedAsync += async (sender, ea) =>
+            {
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+                var cliente = JsonSerializer.Deserialize<Cliente>(message);
+
+                Console.WriteLine($"[PropostasService] Cliente {cliente?.Nome} recebido, criando proposta");
+
+                if (cliente is null)
+                {
+                    Console.WriteLine("[PropostasService] Mensagem inválida recebida");
+                    return;
+                }
+
+                int score = PropostaScoreService.Calculate(cliente);
+
+                var proposta = new Proposta
+                {
+                    ClienteId = cliente.Id,
+                    Valor = cliente.Renda * 0.8m,
+                    Score = score,
+                    Status = PropostaStatus.EmAnalise
+                };
+
+                repo.Insert(proposta);
+                await Task.Yield();
+            };
+
+            await channel.BasicConsumeAsync(
+                queue: "cliente.criado",
+                autoAck: true,
+                consumer: consumer
+            );
+
+            Console.WriteLine("[PropostasService] Consumidor iniciado e aguardando mensagens...");
+        });
+
+        // Endpoint para listar propostas
+        app.MapGet("/api/propostas", (int? page, int? pageSize) =>
         {
-            ClienteId = cliente.Id,
-            Valor = cliente.Renda * 0.8m,
-            Score = score,
-            Status = PropostaStatus.EmAnalise,
-        };
-        repo.Insert(proposta);
-        await Task.Yield();
-    };
+            int currentPage = page ?? 1;
+            int size = pageSize ?? 10;
 
-    await channel.BasicConsumeAsync(
-        queue: "cliente.criado",
-        autoAck: true,
-        consumer: consumer
-    );
+            var registros = repo.GetAll(currentPage, size).ToList();
 
-    Console.WriteLine("[PropostasService] Consumidor iniciado e aguardando mensagens...");
-});
+            return Results.Ok(new PagedResult<Proposta>(){Pagina = currentPage, Tamanho = size, Total = repo.Count(), Items = registros});
+        });
 
+        app.MapGet("/api/propostas/cliente/{id:guid}", (Guid id) =>
+        {
+            var registros = repo.GetByCliente(id).ToList();
+            return Results.Ok(new { pagina = 1, tamanho = registros.Count, total = registros.Count, items = registros });
+        });
 
-app.MapGet("/api/propostas", (int? page, int? pageSize) =>
-{
-    int currentPage = page ?? 1;
-    int size = pageSize ?? 10;
+        // Endpoint para decisão de proposta
+        app.MapPost("/api/propostas/decidir", async (PropostaDecisaoRequest request) =>
+        {
+            if (request == null || request.Id == Guid.Empty)
+                return Results.BadRequest(new { erro = "Requisição inválida" });
 
-    var registros = repo.GetAll(currentPage, size).ToList();
+            var proposta = repo.Find(request.Id);
+            if (proposta is null)
+                return Results.NotFound(new { erro = $"Proposta {request.Id} não encontrada" });
 
-    return Results.Ok(new
-    {
-        pagina = currentPage,
-        tamanho = size,
-        total = repo.Count(),
-        items = registros
-    });
-});
+            if (proposta.Status != PropostaStatus.EmAnalise)
+                return Results.BadRequest(new { erro = "Apenas propostas em análise podem ser aprovadas" });
 
-app.MapPost("/api/propostas/decidir", async (PropostaDecisaoRequest request) =>
-{
-    if (request == null || request.Id == Guid.Empty)
-        return Results.BadRequest(new { erro = "Requisição inválida" });
+            proposta.Status = request.Aprovado ? PropostaStatus.Aprovada : PropostaStatus.Rejeitada;
 
-    var proposta = repo.Find(request.Id);
-    if (proposta is null)
-        return Results.NotFound(new { erro = $"Proposta {request.Id} não encontrada" });
+            if (repo.Update(proposta))
+            {
+                var publisher = new MessagePublisher(request.Aprovado ? "proposta.aprovada" : "proposta.rejeitada");
+                await publisher.PublishAsync(proposta);
+                return Results.NoContent();
+            }
 
-    if (proposta.Status != PropostaStatus.EmAnalise)
-        return Results.BadRequest(new { erro = "Apenas propostas em analise podem ser aprovadas" });
+            return Results.Json(new { erro = "Erro interno de processamento" }, statusCode: 422);
+        });
 
-    proposta.Status = request.Aprovado ? PropostaStatus.Aprovada : PropostaStatus.Rejeitada;
-    if (repo.Update(proposta))
-    {
-        var publisher = new MessagePublisher(request.Aprovado ? "proposta.aprovada" : "proposta.rejeitada");
-        await publisher.PublishAsync(proposta);
-        return Results.NoContent();
+        app.Run();
     }
-
-    return Results.Json(new { erro = "Erro interno de processamento" }, statusCode: 422);
-});
-
-app.MapControllers();
-app.Run();
-
+}
 public partial class Program { }
+
