@@ -64,22 +64,30 @@ public class ClienteRepository
 
         foreach (var row in result)
         {
-            yield return new Cliente
-            {
-                Id = Guid.Parse((string)row.Id),
-                Nome = (string)row.Nome,
-                Cpf = (string)row.Cpf,
-                Renda = (decimal)row.Renda,
-                Nascimento = DateTime.Parse((string)row.Nascimento),
-                Segmento = (ClienteSegmento)(int)row.Segmento,
-                Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
-                Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado),
-            };
+            yield return Fetch(row);
         }
     }
 
     public int Count()
     {
         return _connection.ExecuteScalar<int>("SELECT COUNT(*) FROM Clientes");
+    }
+
+    private Cliente? Fetch(dynamic? row)
+    {
+        if (row == null)
+            return null;
+
+        return new Cliente
+        {
+            Id = Guid.Parse((string)row.Id),
+            Nome = (string)row.Nome,
+            Cpf = (string)row.Cpf,
+            Renda = (decimal)row.Renda,
+            Nascimento = DateTime.Parse((string)row.Nascimento),
+            Segmento = (ClienteSegmento)(int)row.Segmento,
+            Criado = string.IsNullOrEmpty((string)row.Criado) ? DateTime.Now : DateTime.Parse((string)row.Criado),
+            Alterado = string.IsNullOrEmpty((string)row.Alterado) ? null : DateTime.Parse((string)row.Alterado),
+        };
     }
 }
